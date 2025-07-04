@@ -1,11 +1,14 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Blender Render Upload</title>
+    <title>Blender render upload</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/lightbox2/2.11.4/css/lightbox.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 </head>
 <body class="container py-4">
     <h1 class="mb-4">Upload .blend file for rendering</h1>
+
     {% if error %}
         <div class="alert alert-danger">{{ error }}</div>
     {% endif %}
@@ -23,7 +26,19 @@
     <ul class="list-group mb-4">
         {% for f in gdrive_files %}
             <li class="list-group-item d-flex justify-content-between align-items-center">
-                <b>{{ f.name }}</b>
+                <div>
+                    <b>{{ f.name }}</b>
+                    {% if f.size %}
+                        <span class="text-muted ms-2" style="font-size:0.95em;">
+                            ({{ (f.size | int) // 1024 // 1024 }} MB)
+                        </span>
+                    {% endif %}
+                    {% if f.modifiedTime %}
+                        <span class="text-muted ms-2" style="font-size:0.95em;">
+                            {{ f.modifiedTime | datetimeformat }}
+                        </span>
+                    {% endif %}
+                </div>
                 <a href="{{ url_for('render_gdrive', filename=f.name) }}" class="btn btn-sm btn-outline-primary">
                     Render
                 </a>
@@ -33,18 +48,56 @@
         {% endfor %}
     </ul>
 
-    <form method="post" enctype="multipart/form-data" class="mb-4">
-        <div class="mb-3">
-            <input type="file" class="form-control" name="file" accept=".blend" required>
-        </div>
-        <button type="submit" class="btn btn-primary">Upload</button>
-    </form>
+    <h2 class="mb-3">Rendered images gallery</h2>
+    <div class="row mb-4">
+        {% for img in rendered_images %}
+            <div class="col-md-3 col-sm-4 col-6 mb-3">
+                <div class="card shadow-sm">
+                    <a href="{{ url_for('download', filename=img) }}" data-lightbox="rendered-gallery" data-title="{{ img }}">
+                        <img src="{{ url_for('download', filename=img) }}" class="card-img-top" alt="{{ img }}">
+                    </a>
+                    <div class="card-body p-2">
+                        <small class="text-muted">{{ img }}</small>
+                    </div>
+                </div>
+            </div>
+        {% else %}
+            <div class="col-12 text-muted">No rendered images found.</div>
+        {% endfor %}
+    </div>
 
-    {% if img_b64 %}
-        <h2 class="mb-3">Rendered Image:</h2>
-        <div class="text-center">
-            <img src="data:image/jpeg;base64,{{ img_b64 }}" alt="Rendered Image" class="img-fluid rounded shadow"/>
-        </div>
-    {% endif %}
+    <h2 class="mb-3 d-flex align-items-center">
+        Debug Log (last 300 lines)
+        <button id="refresh-log-btn" type="button" class="btn btn-link p-0 ms-2" title="Refresh log">
+            <i class="fas fa-rotate-right fa-lg"></i>
+        </button>
+    </h2>
+    <textarea id="debug-log" class="form-control mb-4" rows="15" readonly style="font-family:monospace; white-space:pre; overflow-x:auto;" wrap="off"></textarea>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lightbox2/2.11.4/js/lightbox.min.js"></script>
+    <script>
+let debugLogFocused = false;
+const textarea = document.getElementById("debug-log");
+textarea.addEventListener("focus", () => { debugLogFocused = true; });
+textarea.addEventListener("blur",  () => { debugLogFocused = false; });
+
+function fetchLog() {
+    if (debugLogFocused) return;
+    fetch("{{ url_for('debug_log') }}")
+        .then(response => response.text())
+        .then(text => {
+            textarea.value = text;
+            textarea.scrollTop = textarea.scrollHeight; // auto-scroll to bottom
+        });
+}
+fetchLog();
+setInterval(fetchLog, 10000); // every 10 seconds
+
+document.getElementById("refresh-log-btn").addEventListener("click", function() {
+    debugLogFocused = false; // allow refresh even if focused
+    fetchLog();
+});
+</script>
 </body>
 </html>
