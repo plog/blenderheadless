@@ -86,3 +86,4 @@ venv.bak/
 venv/
 wheels/
 workspace/
+api/*.json
