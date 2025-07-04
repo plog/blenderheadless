@@ -1,0 +1,33 @@
+services:
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile.flask
+    container_name: blender_api
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 3
+              capabilities: ["gpu"]    
+    volumes:
+      - ./workspace:/workspace
+      - ./api:/app
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=1,2,3
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+      - TZ=Europe/Paris      
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.blender-api.rule=Host(`blender.plog.net`)"
+      - "traefik.http.routers.blender-api.entrypoints=web"
+      - "traefik.http.services.blender-api.loadbalancer.server.port=80"
+    networks:
+      default: {}
+
+networks:
+  default:
+    external: true
+    name: scoobydoo
+    enable_ipv6: false

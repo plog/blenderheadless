@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Blender Render Upload</title>
+</head>
+<body>
+    <h1>Upload .blend file for rendering</h1>
+    {% if error %}
+        <p style="color:red;">{{ error }}</p>
+    {% endif %}
+    {% if job %}
+        <p>Job submitted! Job ID: <b>{{ job }}</b></p>
+        <p>You can download the result later at: <code>/download/{{ job }}</code></p>
+    {% endif %}
+    <form method="post" enctype="multipart/form-data">
+        <input type="file" name="file" accept=".blend" required>
+        <input type="submit" value="Upload">
+    </form>
+
+    {% if img_b64 %}
+        <h2>Rendered Image:</h2>
+        <img src="data:image/jpeg;base64,{{ img_b64 }}" alt="Rendered Image"/>
+    {% endif %}
+</body>
+</html>
