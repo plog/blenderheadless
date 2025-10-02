@@ -25,14 +25,6 @@ services:
       - "traefik.http.routers.blender-api.tls=true"
       - "traefik.http.routers.blender-api.tls.certresolver=letsencrypt"
       - "traefik.http.services.blender-api.loadbalancer.server.port=80"
-    networks:
-      default: {}
-
-networks:
-  default:
-    external: true
-    name: scoobydoo
-    enable_ipv6: false
 
 volumes:
   workspace_data:
