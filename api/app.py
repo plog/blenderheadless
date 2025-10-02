@@ -26,6 +26,16 @@ class Config:
 app = Flask(__name__)
 app.config.from_object(Config)
 
+# Ensure secret key is set for sessions
+if not app.config.get('SECRET_KEY') or app.config['SECRET_KEY'] == 'change-this-secret-key-in-production':
+    import secrets
+    app.config['SECRET_KEY'] = secrets.token_hex(16)
+    print("WARNING: Using auto-generated SECRET_KEY. Set SECRET_KEY environment variable for production.")
+
+# Debug: Print configuration on startup
+print(f"AUTH_TOKEN configured: '{app.config['AUTH_TOKEN']}'")
+print(f"Environment AUTH_TOKEN: '{os.environ.get('AUTH_TOKEN', 'NOT SET')}'")
+
 # Session-based auth decorator
 def require_auth(f):
     @wraps(f)
@@ -110,21 +120,47 @@ def render_lock(path):
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
+    print(f"Login route called - Method: {request.method}")
+    
     if request.method == "POST":
         token = request.form.get("token")
-        if token == app.config["AUTH_TOKEN"]:
+        expected_token = app.config["AUTH_TOKEN"]
+        
+        print(f"Token received: '{token}'")
+        print(f"Expected token: '{expected_token}'")
+        print(f"Tokens match: {token == expected_token}")
+        
+        if token == expected_token:
             session["authenticated"] = True
+            print("Login successful - session set")
             next_url = request.args.get("next") or url_for("index")
+            print(f"Redirecting to: {next_url}")
             return redirect(next_url)
         else:
+            print("Login failed - invalid token")
             return render_template("login.html", error="Invalid token")
     
+    print("Showing login form")
     return render_template("login.html")
 
 @app.route("/logout")
 def logout():
     session.pop("authenticated", None)
     return redirect(url_for("login"))
+
+@app.route("/debug_auth")
+def debug_auth():
+    """Debug route to check authentication configuration"""
+    return f"""
+    <h2>Authentication Debug</h2>
+    <p><strong>Expected token:</strong> <code>{app.config['AUTH_TOKEN']}</code></p>
+    <p><strong>Environment AUTH_TOKEN:</strong> <code>{os.environ.get('AUTH_TOKEN', 'NOT SET')}</code></p>
+    <p><strong>Session authenticated:</strong> {'Yes' if session.get('authenticated') else 'No'}</p>
+    <p><strong>Session ID:</strong> {request.cookies.get('session', 'No session cookie')}</p>
+    <hr>
+    <p>Try logging in with exactly: <strong>your-secure-token-here</strong></p>
+    <p><a href="{url_for('login')}">Go to Login</a></p>
+    """
 
 @app.route("/", methods=["GET"])
 @require_auth
