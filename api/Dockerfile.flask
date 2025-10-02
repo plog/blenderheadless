@@ -31,4 +31,7 @@ RUN wget https://download.blender.org/release/Blender4.4/blender-4.4.3-linux-x64
 # Copy application code
 COPY ./api /app
 
+# Create workspace directory structure that the app expects
+RUN mkdir -p /workspace/uploads /workspace/output
+
 CMD ["python3", "app.py"]
