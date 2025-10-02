@@ -7,7 +7,12 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 </head>
 <body class="container py-4">
-    <h1 class="mb-4">Upload .blend file for rendering</h1>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="mb-0">Upload .blend file for rendering</h1>
+        <a href="{{ logout_url }}" class="btn btn-outline-secondary btn-sm">
+            <i class="fas fa-sign-out-alt"></i> Logout
+        </a>
+    </div>
 
     {% if error %}
         <div class="alert alert-danger">{{ error }}</div>

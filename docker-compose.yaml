@@ -17,7 +17,8 @@ services:
     environment:
       - NVIDIA_VISIBLE_DEVICES=1,2,3
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility
-      - TZ=Europe/Paris      
+      - TZ=Europe/Paris
+      - AUTH_TOKEN=your-secure-token-change-this      
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.blender-api.rule=Host(`blender.plog.net`)"

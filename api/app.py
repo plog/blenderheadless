@@ -6,9 +6,9 @@ from datetime import datetime
 from contextlib import contextmanager
 from logging.handlers import RotatingFileHandler
 
-from flask import Flask, request, render_template, send_from_directory, redirect, url_for
-from flask_httpauth import HTTPBasicAuth
+from flask import Flask, request, render_template, send_from_directory, redirect, url_for, abort, session
 from werkzeug.utils import secure_filename
+from functools import wraps
 
 from gdrive_manager import GDriveManager
 import psutil
@@ -18,13 +18,24 @@ import psutil
 class Config:
     WORKDIR = "/workspace"
     LOG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "debug.log")
-    USERS = {
-        "admin": "password",  # replace with env vars or hashed credentials in production
-    }
+    # Use environment variable or default token for auth
+    AUTH_TOKEN = os.environ.get("AUTH_TOKEN", "your-secure-token-here")
+    # Secret key for sessions
+    SECRET_KEY = os.environ.get("SECRET_KEY", "change-this-secret-key-in-production")
 
 app = Flask(__name__)
 app.config.from_object(Config)
-auth = HTTPBasicAuth()
+
+# Session-based auth decorator
+def require_auth(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        # Check if user is logged in via session
+        if 'authenticated' not in session:
+            return redirect(url_for('login', next=request.url))
+        
+        return f(*args, **kwargs)
+    return decorated_function
 
 # --- logging setup ---
 
@@ -43,10 +54,7 @@ logger.addHandler(file_handler)
 logger.addHandler(stream_handler)
 
 # --- auth ---
-
-@auth.verify_password
-def verify_password(username, password):
-    return username if Config.USERS.get(username) == password else None
+# Token-based authentication - see require_auth decorator above
 
 # --- helpers ---
 
@@ -72,6 +80,7 @@ def render_index(error=None, job=None, img_b64=None):
         img_b64=img_b64,
         gdrive_files=get_blend_files(),
         rendered_images=get_rendered_images(),
+        logout_url=url_for("logout")
     )
 
 def is_locked(path):
@@ -99,13 +108,31 @@ def render_lock(path):
 
 # --- routes ---
 
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if request.method == "POST":
+        token = request.form.get("token")
+        if token == app.config["AUTH_TOKEN"]:
+            session["authenticated"] = True
+            next_url = request.args.get("next") or url_for("index")
+            return redirect(next_url)
+        else:
+            return render_template("login.html", error="Invalid token")
+    
+    return render_template("login.html")
+
+@app.route("/logout")
+def logout():
+    session.pop("authenticated", None)
+    return redirect(url_for("login"))
+
 @app.route("/", methods=["GET"])
-@auth.login_required
+@require_auth
 def index():
     return render_index()
 
 @app.route("/", methods=["POST"])
-@auth.login_required
+@require_auth
 def upload():
     upload_dir = os.path.join(app.config["WORKDIR"], "uploads")
     os.makedirs(upload_dir, exist_ok=True)
@@ -129,12 +156,12 @@ def upload():
     return render_index()
 
 @app.route("/refresh_gdrive")
-@auth.login_required
+@require_auth
 def refresh_gdrive():
     return render_index()
 
 @app.route("/render_gdrive/<filename>")
-@auth.login_required
+@require_auth
 def render_gdrive(filename):
     upload_dir = os.path.join(app.config["WORKDIR"], "uploads")
     output_dir = os.path.join(app.config["WORKDIR"], "output")
@@ -190,14 +217,14 @@ def render_gdrive(filename):
         return render_index(error=str(e))
 
 @app.route("/output/<filename>")
-@auth.login_required
+@require_auth
 def download(filename):
     output_dir = os.path.join(app.config["WORKDIR"], "output")
     logger.info(f"Download requested: {filename}")
     return send_from_directory(output_dir, filename, as_attachment=True)
 
 @app.route("/debug_log")
-@auth.login_required
+@require_auth
 def debug_log():
     try:
         with open(app.config["LOG_PATH"], "r") as f:
@@ -207,7 +234,7 @@ def debug_log():
         return f"Error reading log: {e}", 500, {"Content-Type": "text/plain"}
 
 @app.route("/blender_processes")
-@auth.login_required
+@require_auth
 def blender_processes():
     try:
         output = []
