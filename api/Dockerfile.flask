@@ -13,7 +13,7 @@ RUN apt-get install -y wget bzip2 \
     libxrandr2 libxinerama1 libxxf86vm1 libsm6 \
     libice6 libxrender1 libxfixes3 libxext6 libx11-6 \
     libatk1.0-0 libcairo2 libpango-1.0-0 libpangocairo-1.0-0 \
-    libgdk-pixbuf2.0-0 libgtk-3-0 ffmpeg
+    libgdk-pixbuf2.0-0 libgtk-3-0 ffmpeg freeglut3-dev
 
 
 RUN pip install --upgrade pip

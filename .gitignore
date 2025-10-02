@@ -56,6 +56,7 @@ cython_debug/
 db.sqlite3
 db.sqlite3-journal
 develop-eggs/
+debug.*
 dist/
 dmypy.json
 docs/_build/

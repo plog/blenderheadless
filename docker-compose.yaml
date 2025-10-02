@@ -10,7 +10,8 @@ services:
           devices:
             - driver: nvidia
               count: 3
-              capabilities: ["gpu"]    
+              capabilities: ["gpu"]
+    privileged: true
     volumes:
       - ./workspace:/workspace
       - ./api:/app

@@ -39,7 +39,9 @@
                         </span>
                     {% endif %}
                 </div>
-                <a href="{{ url_for('render_gdrive', filename=f.name) }}" class="btn btn-sm btn-outline-primary">
+                <a href="{{ url_for('render_gdrive', filename=f.name) }}"
+                   class="btn btn-sm btn-outline-primary render-btn"
+                   data-filename="{{ f.name }}">
                     Render
                 </a>
             </li>
@@ -67,12 +69,22 @@
     </div>
 
     <h2 class="mb-3 d-flex align-items-center">
+        Blender CPU Processes
+        <button id="refresh-blender-btn" type="button" class="btn btn-link p-0 ms-2" title="Refresh Blender processes">
+            <i class="fas fa-rotate-right fa-lg"></i>
+        </button>
+    </h2>
+    <pre id="blender-processes" class="mb-4" style="background:#f8f9fa; padding:1em; border-radius:6px; font-family:monospace; font-size:0.97em; max-height:300px; overflow:auto;"></pre>
+
+
+    <h2 class="mb-3 d-flex align-items-center">
         Debug Log (last 300 lines)
         <button id="refresh-log-btn" type="button" class="btn btn-link p-0 ms-2" title="Refresh log">
             <i class="fas fa-rotate-right fa-lg"></i>
         </button>
     </h2>
     <textarea id="debug-log" class="form-control mb-4" rows="15" readonly style="font-family:monospace; white-space:pre; overflow-x:auto;" wrap="off"></textarea>
+
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/lightbox2/2.11.4/js/lightbox.min.js"></script>
@@ -97,6 +109,38 @@ setInterval(fetchLog, 10000); // every 10 seconds
 document.getElementById("refresh-log-btn").addEventListener("click", function() {
     debugLogFocused = false; // allow refresh even if focused
     fetchLog();
+});
+
+
+function fetchBlender() {
+    fetch("{{ url_for('blender_processes') }}")
+        .then(response => response.text())
+        .then(text => {
+            document.getElementById("blender-processes").textContent = text;
+        });
+}
+fetchBlender();
+setInterval(fetchBlender, 10000);
+document.getElementById("refresh-blender-btn").addEventListener("click", fetchBlender);
+
+document.querySelectorAll('.render-btn').forEach(btn => {
+    btn.addEventListener('click', function(e) {
+        e.preventDefault();
+        const filename = this.getAttribute('data-filename');
+        this.disabled = true;
+        this.textContent = "Rendering...";
+        fetch(`/render_gdrive/${encodeURIComponent(filename)}`)
+            .then(response => response.text())
+            .then(html => {
+                // Optionally, show a toast or alert here
+                // Reload file list and rendered images via location.reload() or AJAX partial update
+                location.reload();
+            })
+            .catch(() => {
+                this.disabled = false;
+                this.textContent = "Render";
+            });
+    });
 });
 </script>
 </body>
