@@ -1,0 +1,7 @@
+# Exclude workspace directory - we'll create it in Dockerfile
+workspace/
+
+# Other exclusions
+.git/
+*.log
+__pycache__/

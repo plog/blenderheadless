@@ -1,8 +1,8 @@
 services:
   api:
     build:
-      context: ./api
-      dockerfile: Dockerfile.flask
+      context: .
+      dockerfile: ./api/Dockerfile.flask
     container_name: blender_api
     deploy:
       resources:
@@ -13,8 +13,7 @@ services:
               capabilities: ["gpu"]
     privileged: true
     volumes:
-      - ./workspace:/workspace
-      - ./api:/app
+      - workspace_data:/workspace
     environment:
       - NVIDIA_VISIBLE_DEVICES=1,2,3
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility
@@ -34,3 +33,7 @@ networks:
     external: true
     name: scoobydoo
     enable_ipv6: false
+
+volumes:
+  workspace_data:
+    driver: local

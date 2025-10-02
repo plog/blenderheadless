@@ -4,7 +4,7 @@ WORKDIR /app
 RUN mkdir -p /app/logs && \
     chown -R root:root /app/logs && \
     chmod 755 /app/logs
-COPY ./requirements.txt /tmp/requirements.txt
+COPY ./api/requirements.txt /tmp/requirements.txt
 
 RUN apt-get update && apt-get upgrade -y
 RUN apt-get install -y python3 python3-pip gettext nginx vim procps net-tools iputils-ping cron curl logrotate
@@ -19,13 +19,16 @@ RUN apt-get install -y wget bzip2 \
 RUN pip install --upgrade pip
 RUN pip install -r /tmp/requirements.txt --no-cache-dir
 
-COPY ./config/.bashrc /root/.bashrc
+COPY ./api/config/.bashrc /root/.bashrc
 
-COPY ./config/gunicorn-logrotate.conf /etc/logrotate.d/gunicorn
+COPY ./api/config/gunicorn-logrotate.conf /etc/logrotate.d/gunicorn
 RUN chmod 0644 /etc/logrotate.d/gunicorn
 
 RUN wget https://download.blender.org/release/Blender4.4/blender-4.4.3-linux-x64.tar.xz -O /tmp/blender.tar.xz && \
     tar -xf /tmp/blender.tar.xz -C /opt && \
     ln -s /opt/blender-4.4.3-linux-x64/blender /usr/local/bin/blender
+
+# Copy application code
+COPY ./api /app
 
 CMD ["python3", "app.py"]
