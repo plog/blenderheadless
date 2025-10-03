@@ -9,6 +9,34 @@ This project enables users to:
 - Automate rendering tasks
 - Integrate Blender into pipelines or backend services
 
+## Setup
+
+1. **Environment Configuration**
+   ```bash
+   # Copy the example environment file
+   cp .env.example .env
+   
+   # Edit .env with your actual values
+   nano .env
+   ```
+
+2. **Required Environment Variables**
+   - `AUTH_TOKEN`: Secure token for web interface authentication
+   - `SECRET_KEY`: Flask session secret (generate a random string)
+   - `TZ`: Your timezone (e.g., Europe/Paris)
+   - `NVIDIA_VISIBLE_DEVICES`: GPU devices to use
+   - `NVIDIA_DRIVER_CAPABILITIES`: CUDA capabilities
+
+3. **Deployment**
+   - For local development: `docker compose up`
+   - For production: Deploy via Git (Coolify, etc.)
+
+## Security Notes
+
+- Never commit `.env` files to Git
+- Use strong, unique tokens for `AUTH_TOKEN` and `SECRET_KEY`
+- The `.env` file is already excluded in `.gitignore`
+
 ## How to Run
 
 1. **Install Blender**

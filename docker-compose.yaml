@@ -15,10 +15,11 @@ services:
     volumes:
       - workspace_data:/workspace
     environment:
-      - NVIDIA_VISIBLE_DEVICES=1,2,3
-      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
-      - TZ=Europe/Paris
-      - AUTH_TOKEN=your-secure-token-change-this      
+      - NVIDIA_VISIBLE_DEVICES=${NVIDIA_VISIBLE_DEVICES}
+      - NVIDIA_DRIVER_CAPABILITIES=${NVIDIA_DRIVER_CAPABILITIES}
+      - TZ=${TZ}
+      - AUTH_TOKEN=${AUTH_TOKEN}
+      - SECRET_KEY=${SECRET_KEY}
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.blender-api.rule=Host(`blender.plog.net`)"
