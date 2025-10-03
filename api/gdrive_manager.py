@@ -8,22 +8,63 @@ from google.oauth2 import service_account
 class GDriveManager:
     def __init__(self):
         SCOPES = ['https://www.googleapis.com/auth/drive']        
+        
+        # Debug environment variables
+        env_vars = {
+            "GOOGLE_PROJECT_ID": os.getenv("GOOGLE_PROJECT_ID"),
+            "GOOGLE_PRIVATE_KEY_ID": os.getenv("GOOGLE_PRIVATE_KEY_ID"),
+            "GOOGLE_PRIVATE_KEY": os.getenv("GOOGLE_PRIVATE_KEY"),
+            "GOOGLE_CLIENT_EMAIL": os.getenv("GOOGLE_CLIENT_EMAIL"),
+            "GOOGLE_CLIENT_ID": os.getenv("GOOGLE_CLIENT_ID")
+        }
+        
+        print("=== GDrive Environment Variables Debug ===")
+        for key, value in env_vars.items():
+            if value is None:
+                print(f"❌ {key}: NOT SET")
+            elif key == "GOOGLE_PRIVATE_KEY":
+                print(f"✅ {key}: SET (length: {len(value)}, starts with: {value[:30]}...)")
+                if not value.startswith('-----BEGIN PRIVATE KEY-----'):
+                    print(f"⚠️  {key}: Does not start with '-----BEGIN PRIVATE KEY-----'")
+                if '\\n' in value:
+                    print(f"⚠️  {key}: Contains escaped newlines (\\n)")
+            else:
+                print(f"✅ {key}: {value}")
+        print("=" * 45)
+        
+        # Check for missing variables
+        missing = [k for k, v in env_vars.items() if v is None]
+        if missing:
+            raise ValueError(f"Missing environment variables: {missing}")
+        
+        # Process private key
+        private_key = (env_vars["GOOGLE_PRIVATE_KEY"] or "").replace('\\n', '\n')
+        if env_vars["GOOGLE_PRIVATE_KEY"] and '\\n' in env_vars["GOOGLE_PRIVATE_KEY"]:
+            print("🔧 Converted escaped newlines in private key")
+        
         # Use environment variables
         creds_info = {
             "type": "service_account",
-            "project_id":     os.getenv("GOOGLE_PROJECT_ID"),
-            "private_key_id": os.getenv("GOOGLE_PRIVATE_KEY_ID"),
-            "private_key":    (os.getenv("GOOGLE_PRIVATE_KEY") or "").replace('\\n', '\n'),
-            "client_email":   os.getenv("GOOGLE_CLIENT_EMAIL"),
-            "client_id":      os.getenv("GOOGLE_CLIENT_ID"),
+            "project_id": env_vars["GOOGLE_PROJECT_ID"],
+            "private_key_id": env_vars["GOOGLE_PRIVATE_KEY_ID"],
+            "private_key": private_key,
+            "client_email": env_vars["GOOGLE_CLIENT_EMAIL"],
+            "client_id": env_vars["GOOGLE_CLIENT_ID"],
             "auth_uri": "https://accounts.google.com/o/oauth2/auth",
             "token_uri": "https://oauth2.googleapis.com/token",
             "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-            "client_x509_cert_url": f"https://www.googleapis.com/robot/v1/metadata/x509/{os.getenv('GOOGLE_CLIENT_EMAIL')}"
+            "client_x509_cert_url": f"https://www.googleapis.com/robot/v1/metadata/x509/{env_vars['GOOGLE_CLIENT_EMAIL']}"
         }
-        self.creds = service_account.Credentials.from_service_account_info(
-            creds_info, scopes=SCOPES
-        )
+        
+        try:
+            self.creds = service_account.Credentials.from_service_account_info(
+                creds_info, scopes=SCOPES
+            )
+            print("✅ Google Drive credentials created successfully")
+        except Exception as e:
+            print(f"❌ Failed to create credentials: {str(e)}")
+            print(f"Private key first 100 chars: {private_key[:100]}...")
+            raise
         
         self.service = build('drive', 'v3', credentials=self.creds)
 
