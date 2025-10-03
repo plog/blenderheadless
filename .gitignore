@@ -18,6 +18,11 @@ __pypackages__/
 .nox/
 .pdm-build/
 .pdm-python
+
+# Google Cloud credentials - NEVER commit these!
+service_account.json
+**/service_account.json
+api/service_account.json
 .pixi
 .pybuilder/
 .pypirc

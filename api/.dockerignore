@@ -34,3 +34,7 @@ Dockerfile*
 # Temporary files
 *.tmp
 *.temp
+
+# NOTE: service_account.json is NOT excluded here
+# because it needs to be copied into the container
+# but it IS excluded in .gitignore to prevent Git commits

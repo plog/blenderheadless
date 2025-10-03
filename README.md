@@ -20,22 +20,30 @@ This project enables users to:
    nano .env
    ```
 
-2. **Required Environment Variables**
+2. **Google Cloud Service Account** (for Google Drive integration)
+   ```bash
+   # Place your Google Cloud service account JSON file
+   # This file contains credentials and must NOT be committed to Git
+   cp path/to/your/service_account.json api/service_account.json
+   ```
+
+3. **Required Environment Variables**
    - `AUTH_TOKEN`: Secure token for web interface authentication
    - `SECRET_KEY`: Flask session secret (generate a random string)
    - `TZ`: Your timezone (e.g., Europe/Paris)
    - `NVIDIA_VISIBLE_DEVICES`: GPU devices to use
    - `NVIDIA_DRIVER_CAPABILITIES`: CUDA capabilities
 
-3. **Deployment**
+4. **Deployment**
    - For local development: `docker compose up`
    - For production: Deploy via Git (Coolify, etc.)
 
 ## Security Notes
 
 - Never commit `.env` files to Git
+- Never commit `service_account.json` to Git
 - Use strong, unique tokens for `AUTH_TOKEN` and `SECRET_KEY`
-- The `.env` file is already excluded in `.gitignore`
+- Both `.env` and `service_account.json` are excluded in `.gitignore`
 
 ## How to Run
 
