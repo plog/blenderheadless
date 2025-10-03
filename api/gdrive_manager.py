@@ -1,9 +1,12 @@
 import os
 import io
 import json
+import logging
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload
 from google.oauth2 import service_account
+
+logger = logging.getLogger(__name__)
 
 class GDriveManager:
     def __init__(self):
@@ -18,19 +21,19 @@ class GDriveManager:
             "GOOGLE_CLIENT_ID": os.getenv("GOOGLE_CLIENT_ID")
         }
         
-        print("=== GDrive Environment Variables Debug ===")
+        logger.info("=== GDrive Environment Variables Debug ===")
         for key, value in env_vars.items():
             if value is None:
-                print(f"❌ {key}: NOT SET")
+                logger.error(f"❌ {key}: NOT SET")
             elif key == "GOOGLE_PRIVATE_KEY":
-                print(f"✅ {key}: SET (length: {len(value)}, starts with: {value[:30]}...)")
+                logger.info(f"✅ {key}: SET (length: {len(value)}, starts with: {value[:30]}...)")
                 if not value.startswith('-----BEGIN PRIVATE KEY-----'):
-                    print(f"⚠️  {key}: Does not start with '-----BEGIN PRIVATE KEY-----'")
+                    logger.warning(f"⚠️  {key}: Does not start with '-----BEGIN PRIVATE KEY-----'")
                 if '\\n' in value:
-                    print(f"⚠️  {key}: Contains escaped newlines (\\n)")
+                    logger.warning(f"⚠️  {key}: Contains escaped newlines (\\n)")
             else:
-                print(f"✅ {key}: {value}")
-        print("=" * 45)
+                logger.info(f"✅ {key}: {value}")
+        logger.info("=" * 45)
         
         # Check for missing variables
         missing = [k for k, v in env_vars.items() if v is None]
@@ -40,7 +43,7 @@ class GDriveManager:
         # Process private key
         private_key = (env_vars["GOOGLE_PRIVATE_KEY"] or "").replace('\\n', '\n')
         if env_vars["GOOGLE_PRIVATE_KEY"] and '\\n' in env_vars["GOOGLE_PRIVATE_KEY"]:
-            print("🔧 Converted escaped newlines in private key")
+            logger.info("🔧 Converted escaped newlines in private key")
         
         # Use environment variables
         creds_info = {
@@ -60,10 +63,10 @@ class GDriveManager:
             self.creds = service_account.Credentials.from_service_account_info(
                 creds_info, scopes=SCOPES
             )
-            print("✅ Google Drive credentials created successfully")
+            logger.info("✅ Google Drive credentials created successfully")
         except Exception as e:
-            print(f"❌ Failed to create credentials: {str(e)}")
-            print(f"Private key first 100 chars: {private_key[:100]}...")
+            logger.error(f"❌ Failed to create credentials: {str(e)}")
+            logger.error(f"Private key first 100 chars: {private_key[:100]}...")
             raise
         
         self.service = build('drive', 'v3', credentials=self.creds)
