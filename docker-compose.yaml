@@ -20,11 +20,7 @@ services:
       - TZ=${TZ}
       - AUTH_TOKEN=${AUTH_TOKEN}
       - SECRET_KEY=${SECRET_KEY}
-      - GOOGLE_PROJECT_ID=${GOOGLE_PROJECT_ID}
-      - GOOGLE_PRIVATE_KEY_ID=${GOOGLE_PRIVATE_KEY_ID}
-      - GOOGLE_PRIVATE_KEY=${GOOGLE_PRIVATE_KEY}
-      - GOOGLE_CLIENT_EMAIL=${GOOGLE_CLIENT_EMAIL}
-      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}      
+      - GOOGLE_SERVICE_ACCOUNT_B64=${GOOGLE_SERVICE_ACCOUNT_B64}      
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.blender-api.rule=Host(`blender.plog.net`)"

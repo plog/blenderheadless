@@ -10,90 +10,84 @@ logger = logging.getLogger(__name__)
 
 class GDriveManager:
     def __init__(self):
-        SCOPES = ['https://www.googleapis.com/auth/drive']        
+        SCOPES = ['https://www.googleapis.com/auth/drive']
         
-        # Debug environment variables
-        env_vars = {
-            "GOOGLE_PROJECT_ID": os.getenv("GOOGLE_PROJECT_ID"),
-            "GOOGLE_PRIVATE_KEY_ID": os.getenv("GOOGLE_PRIVATE_KEY_ID"),
-            "GOOGLE_PRIVATE_KEY": os.getenv("GOOGLE_PRIVATE_KEY"),
-            "GOOGLE_CLIENT_EMAIL": os.getenv("GOOGLE_CLIENT_EMAIL"),
-            "GOOGLE_CLIENT_ID": os.getenv("GOOGLE_CLIENT_ID")
-        }
+        # Try base64 encoded service account first (recommended for Coolify)
+        google_service_account_b64 = os.getenv("GOOGLE_SERVICE_ACCOUNT_B64")
         
-        logger.info("=== GDrive Environment Variables Debug ===")
-        for key, value in env_vars.items():
-            if value is None:
-                logger.error(f"❌ {key}: NOT SET")
-            elif key == "GOOGLE_PRIVATE_KEY":
-                logger.info(f"✅ {key}: SET (length: {len(value)}, starts with: {value[:30]}...)")
-                if not value.startswith('-----BEGIN PRIVATE KEY-----'):
-                    logger.warning(f"⚠️  {key}: Does not start with '-----BEGIN PRIVATE KEY-----'")
-                if '\\n' in value:
-                    logger.warning(f"⚠️  {key}: Contains escaped newlines (\\n)")
-            else:
-                logger.info(f"✅ {key}: {value}")
-        logger.info("=" * 45)
-        
-        # Check for missing variables
-        missing = [k for k, v in env_vars.items() if v is None]
-        if missing:
-            raise ValueError(f"Missing environment variables: {missing}")
-        
-        # Process private key
-        private_key = (env_vars["GOOGLE_PRIVATE_KEY"] or "").replace('\\n', '\n')
-        if env_vars["GOOGLE_PRIVATE_KEY"] and '\\n' in env_vars["GOOGLE_PRIVATE_KEY"]:
-            logger.info("🔧 Converted escaped newlines in private key")
-        
-        # Additional private key debugging
-        logger.info(f"🔍 Private key debug:")
-        logger.info(f"   - Original length: {len(env_vars['GOOGLE_PRIVATE_KEY'])}")
-        logger.info(f"   - Processed length: {len(private_key)}")
-        logger.info(f"   - Has \\n sequences: {'\\n' in env_vars['GOOGLE_PRIVATE_KEY']}")
-        logger.info(f"   - Has actual newlines: {chr(10) in private_key}")
-        logger.info(f"   - First 50 chars: {private_key[:50]}")
-        logger.info(f"   - Last 50 chars: {private_key[-50:]}")
-        logger.info(f"   - Contains BEGIN header: {'-----BEGIN PRIVATE KEY-----' in private_key}")
-        logger.info(f"   - Contains END footer: {'-----END PRIVATE KEY-----' in private_key}")
-        
-        # Use environment variables
-        creds_info = {
-            "type": "service_account",
-            "project_id": env_vars["GOOGLE_PROJECT_ID"],
-            "private_key_id": env_vars["GOOGLE_PRIVATE_KEY_ID"],
-            "private_key": private_key,
-            "client_email": env_vars["GOOGLE_CLIENT_EMAIL"],
-            "client_id": env_vars["GOOGLE_CLIENT_ID"],
-            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-            "token_uri": "https://oauth2.googleapis.com/token",
-            "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-            "client_x509_cert_url": f"https://www.googleapis.com/robot/v1/metadata/x509/{env_vars['GOOGLE_CLIENT_EMAIL']}"
-        }
-        
-        # Debug the final creds_info
-        logger.info("🔍 Final credentials info structure:")
-        for key, value in creds_info.items():
-            if key == "private_key":
-                logger.info(f"   - {key}: [PRIVATE_KEY:{len(value)} chars]")
-            else:
-                logger.info(f"   - {key}: {value}")
-        
-        try:
-            self.creds = service_account.Credentials.from_service_account_info(
-                creds_info, scopes=SCOPES
-            )
-            logger.info("✅ Google Drive credentials created successfully")
-        except Exception as e:
-            logger.error(f"❌ Failed to create credentials: {str(e)}")
-            logger.error(f"❌ Exception type: {type(e).__name__}")
-            # Try to save the problematic key to a temp file for inspection
+        if google_service_account_b64:
+            logger.info("📁 Loading Google credentials from base64 encoded service account")
             try:
-                with open('/tmp/debug_key.txt', 'w') as f:
-                    f.write(private_key)
-                logger.info("🔍 Saved private key to /tmp/debug_key.txt for inspection")
-            except:
-                pass
-            raise
+                import base64
+                decoded_json = base64.b64decode(google_service_account_b64).decode('utf-8')
+                creds_info = json.loads(decoded_json)
+                self.creds = service_account.Credentials.from_service_account_info(
+                    creds_info, scopes=SCOPES
+                )
+                logger.info("✅ Google Drive credentials loaded from base64")
+            except Exception as e:
+                logger.error(f"❌ Failed to decode base64 service account: {str(e)}")
+                raise
+        else:
+            logger.info("🔧 Loading Google credentials from individual environment variables")
+            # Fallback to individual environment variables
+            env_vars = {
+                "GOOGLE_PROJECT_ID": os.getenv("GOOGLE_PROJECT_ID"),
+                "GOOGLE_PRIVATE_KEY_ID": os.getenv("GOOGLE_PRIVATE_KEY_ID"),
+                "GOOGLE_PRIVATE_KEY": os.getenv("GOOGLE_PRIVATE_KEY"),
+                "GOOGLE_CLIENT_EMAIL": os.getenv("GOOGLE_CLIENT_EMAIL"),
+                "GOOGLE_CLIENT_ID": os.getenv("GOOGLE_CLIENT_ID")
+            }
+            
+            logger.info("=== GDrive Environment Variables Debug ===")
+            for key, value in env_vars.items():
+                if value is None:
+                    logger.error(f"❌ {key}: NOT SET")
+                elif key == "GOOGLE_PRIVATE_KEY":
+                    logger.info(f"✅ {key}: SET (length: {len(value)}, starts with: {value[:30]}...)")
+                    if not value.startswith('-----BEGIN PRIVATE KEY-----'):
+                        logger.warning(f"⚠️  {key}: Does not start with '-----BEGIN PRIVATE KEY-----'")
+                    backslash_n = '\\n'
+                    if backslash_n in value:
+                        logger.warning(f"⚠️  {key}: Contains escaped newlines")
+                else:
+                    logger.info(f"✅ {key}: {value}")
+            logger.info("=" * 45)
+            
+            # Check for missing variables
+            missing = [k for k, v in env_vars.items() if v is None]
+            if missing:
+                raise ValueError(f"Missing environment variables: {missing}")
+            
+            # Process private key
+            private_key = (env_vars["GOOGLE_PRIVATE_KEY"] or "").replace('\\n', '\n')
+            backslash_n = '\\n'
+            if env_vars["GOOGLE_PRIVATE_KEY"] and backslash_n in env_vars["GOOGLE_PRIVATE_KEY"]:
+                logger.info("🔧 Converted escaped newlines in private key")
+            
+            # Use environment variables
+            creds_info = {
+                "type": "service_account",
+                "project_id": env_vars["GOOGLE_PROJECT_ID"],
+                "private_key_id": env_vars["GOOGLE_PRIVATE_KEY_ID"],
+                "private_key": private_key,
+                "client_email": env_vars["GOOGLE_CLIENT_EMAIL"],
+                "client_id": env_vars["GOOGLE_CLIENT_ID"],
+                "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                "token_uri": "https://oauth2.googleapis.com/token",
+                "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+                "client_x509_cert_url": f"https://www.googleapis.com/robot/v1/metadata/x509/{env_vars['GOOGLE_CLIENT_EMAIL']}"
+            }
+            
+            try:
+                self.creds = service_account.Credentials.from_service_account_info(
+                    creds_info, scopes=SCOPES
+                )
+                logger.info("✅ Google Drive credentials created successfully")
+            except Exception as e:
+                logger.error(f"❌ Failed to create credentials: {str(e)}")
+                logger.error(f"Private key first 100 chars: {private_key[:100]}...")
+                raise
         
         self.service = build('drive', 'v3', credentials=self.creds)
 
