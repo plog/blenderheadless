@@ -45,6 +45,17 @@ class GDriveManager:
         if env_vars["GOOGLE_PRIVATE_KEY"] and '\\n' in env_vars["GOOGLE_PRIVATE_KEY"]:
             logger.info("🔧 Converted escaped newlines in private key")
         
+        # Additional private key debugging
+        logger.info(f"🔍 Private key debug:")
+        logger.info(f"   - Original length: {len(env_vars['GOOGLE_PRIVATE_KEY'])}")
+        logger.info(f"   - Processed length: {len(private_key)}")
+        logger.info(f"   - Has \\n sequences: {'\\n' in env_vars['GOOGLE_PRIVATE_KEY']}")
+        logger.info(f"   - Has actual newlines: {chr(10) in private_key}")
+        logger.info(f"   - First 50 chars: {private_key[:50]}")
+        logger.info(f"   - Last 50 chars: {private_key[-50:]}")
+        logger.info(f"   - Contains BEGIN header: {'-----BEGIN PRIVATE KEY-----' in private_key}")
+        logger.info(f"   - Contains END footer: {'-----END PRIVATE KEY-----' in private_key}")
+        
         # Use environment variables
         creds_info = {
             "type": "service_account",
@@ -59,6 +70,14 @@ class GDriveManager:
             "client_x509_cert_url": f"https://www.googleapis.com/robot/v1/metadata/x509/{env_vars['GOOGLE_CLIENT_EMAIL']}"
         }
         
+        # Debug the final creds_info
+        logger.info("🔍 Final credentials info structure:")
+        for key, value in creds_info.items():
+            if key == "private_key":
+                logger.info(f"   - {key}: [PRIVATE_KEY:{len(value)} chars]")
+            else:
+                logger.info(f"   - {key}: {value}")
+        
         try:
             self.creds = service_account.Credentials.from_service_account_info(
                 creds_info, scopes=SCOPES
@@ -66,7 +85,14 @@ class GDriveManager:
             logger.info("✅ Google Drive credentials created successfully")
         except Exception as e:
             logger.error(f"❌ Failed to create credentials: {str(e)}")
-            logger.error(f"Private key first 100 chars: {private_key[:100]}...")
+            logger.error(f"❌ Exception type: {type(e).__name__}")
+            # Try to save the problematic key to a temp file for inspection
+            try:
+                with open('/tmp/debug_key.txt', 'w') as f:
+                    f.write(private_key)
+                logger.info("🔍 Saved private key to /tmp/debug_key.txt for inspection")
+            except:
+                pass
             raise
         
         self.service = build('drive', 'v3', credentials=self.creds)
