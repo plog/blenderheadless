@@ -4,6 +4,8 @@ services:
       context: .
       dockerfile: ./api/Dockerfile.flask
     container_name: blender_api
+    networks:
+      - coolify      
     deploy:
       resources:
         reservations:
@@ -24,3 +26,6 @@ services:
 volumes:
   workspace_data:
     driver: local
+networks:
+  coolify:
+    external: true
