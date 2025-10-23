@@ -2,11 +2,17 @@ import os
 import subprocess
 import logging
 import base64
+import secrets
+import zipfile
 from datetime import datetime
 from contextlib import contextmanager
 from logging.handlers import RotatingFileHandler
 
 from flask import Flask, request, render_template, send_from_directory, redirect, url_for, abort, session
+from flask_wtf.csrf import CSRFProtect, validate_csrf
+from flask_wtf import FlaskForm
+from wtforms import FileField, SubmitField
+from wtforms.validators import DataRequired
 from werkzeug.utils import secure_filename
 from functools import wraps
 
@@ -18,13 +24,24 @@ import psutil
 class Config:
     WORKDIR = "/workspace"
     LOG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "debug.log")
-    # Use environment variable or default token for auth
-    AUTH_TOKEN = os.environ.get("AUTH_TOKEN", "your-secure-token-here")
+    # Use environment variable or generate secure token for auth
+    AUTH_TOKEN = os.environ.get("AUTH_TOKEN")
+    if not AUTH_TOKEN:
+        AUTH_TOKEN = secrets.token_urlsafe(32)
+        print("WARNING: No AUTH_TOKEN environment variable set. Generated random token for this session.")
+        print(f"Generated AUTH_TOKEN: {AUTH_TOKEN}")
     # Secret key for sessions
-    SECRET_KEY = os.environ.get("SECRET_KEY", "change-this-secret-key-in-production")
+    SECRET_KEY = os.environ.get("SECRET_KEY", secrets.token_hex(32))
+    
+    # Security settings
+    MAX_FILE_SIZE = 100 * 1024 * 1024  # 100MB
+    ALLOWED_EXTENSIONS = {'.blend'}
 
 app = Flask(__name__)
 app.config.from_object(Config)
+
+# Enable CSRF protection
+csrf = CSRFProtect(app)
 
 # Ensure secret key is set for sessions
 if not app.config.get('SECRET_KEY') or app.config['SECRET_KEY'] == 'change-this-secret-key-in-production':
@@ -67,6 +84,56 @@ logger.addHandler(stream_handler)
 # Token-based authentication - see require_auth decorator above
 
 # --- helpers ---
+
+class UploadForm(FlaskForm):
+    file = FileField('Blend File', validators=[DataRequired()])
+    submit = SubmitField('Upload')
+
+def validate_blend_file(file_path):
+    """Valide la structure d'un fichier .blend"""
+    try:
+        # Vérifier la signature du fichier .blend
+        with open(file_path, 'rb') as f:
+            header = f.read(12)
+            if not header.startswith(b'BLENDER'):
+                return False, "Invalid .blend file signature"
+        
+        # Vérifier la taille du fichier
+        file_size = os.path.getsize(file_path)
+        if file_size > app.config.get('MAX_FILE_SIZE', 100 * 1024 * 1024):
+            return False, f"File too large (max {app.config.get('MAX_FILE_SIZE', 100 * 1024 * 1024) // (1024*1024)}MB)"
+        
+        return True, "Valid"
+    except Exception as e:
+        return False, f"Validation error: {str(e)}"
+
+def scan_blend_for_scripts(file_path):
+    """Scanne un fichier .blend pour détecter des scripts Python suspects"""
+    try:
+        with open(file_path, 'rb') as f:
+            content = f.read()
+            # Rechercher des patterns suspects
+            suspicious_patterns = [
+                b'import os',
+                b'subprocess',
+                b'exec(',
+                b'eval(',
+                b'__import__',
+                b'open(',
+                b'file(',
+                b'input(',
+                b'raw_input',
+                b'system(',
+                b'popen('
+            ]
+            
+            for pattern in suspicious_patterns:
+                if pattern in content:
+                    return True, f"Suspicious pattern found: {pattern.decode('utf-8', errors='ignore')}"
+        
+        return False, "No suspicious scripts detected"
+    except Exception as e:
+        return True, f"Error scanning file: {str(e)}"
 
 def get_blend_files():
     try:
@@ -124,8 +191,7 @@ def login():
     
     if request.method == "POST":
         token = request.form.get("token")
-        expected_token = app.config["AUTH_TOKEN"]
-        
+        expected_token = app.config["AUTH_TOKEN"]        
         print(f"Token received: '{token}'")
         print(f"Expected token: '{expected_token}'")
         print(f"Tokens match: {token == expected_token}")
@@ -148,19 +214,7 @@ def logout():
     session.pop("authenticated", None)
     return redirect(url_for("login"))
 
-@app.route("/debug_auth")
-def debug_auth():
-    """Debug route to check authentication configuration"""
-    return f"""
-    <h2>Authentication Debug</h2>
-    <p><strong>Expected token:</strong> <code>{app.config['AUTH_TOKEN']}</code></p>
-    <p><strong>Environment AUTH_TOKEN:</strong> <code>{os.environ.get('AUTH_TOKEN', 'NOT SET')}</code></p>
-    <p><strong>Session authenticated:</strong> {'Yes' if session.get('authenticated') else 'No'}</p>
-    <p><strong>Session ID:</strong> {request.cookies.get('session', 'No session cookie')}</p>
-    <hr>
-    <p>Try logging in with exactly: <strong>your-secure-token-here</strong></p>
-    <p><a href="{url_for('login')}">Go to Login</a></p>
-    """
+# Route de debug supprimée pour des raisons de sécurité
 
 @app.route("/", methods=["GET"])
 @require_auth
@@ -173,12 +227,22 @@ def upload():
     upload_dir = os.path.join(app.config["WORKDIR"], "uploads")
     os.makedirs(upload_dir, exist_ok=True)
 
+    # Valider le token CSRF
+    try:
+        validate_csrf(request.form.get('csrf_token'))
+    except Exception:
+        return render_index(error="CSRF token validation failed")
+
     if "file" not in request.files:
         return render_index(error="No file part in request")
 
     f = request.files["file"]
     if f.filename == "":
         return render_index(error="No selected file")
+
+    # Validation de l'extension
+    if not f.filename.lower().endswith('.blend'):
+        return render_index(error="Only .blend files are allowed")
 
     filename = secure_filename(f.filename)
     blend_path = os.path.join(upload_dir, filename)
@@ -187,8 +251,21 @@ def upload():
         return render_index(error="File is currently being rendered.")
 
     f.save(blend_path)
-    logger.info(f"Saved uploaded file to {blend_path}")
-
+    
+    # Valider le fichier .blend
+    is_valid, message = validate_blend_file(blend_path)
+    if not is_valid:
+        os.remove(blend_path)  # Supprimer le fichier invalide
+        return render_index(error=f"Invalid file: {message}")
+    
+    # Scanner pour des scripts suspects
+    has_scripts, script_message = scan_blend_for_scripts(blend_path)
+    if has_scripts:
+        os.remove(blend_path)  # Supprimer le fichier suspect
+        logger.warning(f"Suspicious file uploaded: {filename} - {script_message}")
+        return render_index(error=f"File rejected: {script_message}")
+    
+    logger.info(f"Saved and validated uploaded file: {blend_path}")
     return render_index()
 
 @app.route("/refresh_gdrive")
@@ -218,6 +295,7 @@ def render_gdrive(filename):
             result = subprocess.run(
                 [
                     "blender", "-b", blend_path,
+                    "--disable-autoexec",  # Désactive l'auto-exécution des scripts
                     "--python-expr",
                     (
                         "import bpy;"
@@ -233,7 +311,8 @@ def render_gdrive(filename):
                 ],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
-                text=True
+                text=True,
+                timeout=300  # Timeout de 5 minutes
             )
 
             logger.info(f"Blender output:\n{result.stdout}")
@@ -316,4 +395,4 @@ def cleanup_locks():
 if __name__ == "__main__":
     cleanup_locks()
     logger.info("Starting Flask app...")
-    app.run(host="0.0.0.0", port=80, debug=True)
+    app.run(host="0.0.0.0", port=80, debug=True)  # Debug désactivé pour la sécurité

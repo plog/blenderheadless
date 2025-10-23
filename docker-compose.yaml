@@ -21,14 +21,6 @@ services:
       - AUTH_TOKEN=${AUTH_TOKEN}
       - SECRET_KEY=${SECRET_KEY}
       - GOOGLE_SERVICE_ACCOUNT_B64=${GOOGLE_SERVICE_ACCOUNT_B64}      
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.blender-api.rule=Host(`blender.plog.net`)"
-      - "traefik.http.routers.blender-api.entrypoints=websecure"
-      - "traefik.http.routers.blender-api.tls=true"
-      - "traefik.http.routers.blender-api.tls.certresolver=letsencrypt"
-      - "traefik.http.services.blender-api.loadbalancer.server.port=80"
-
 volumes:
   workspace_data:
     driver: local

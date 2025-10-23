@@ -24,6 +24,25 @@
         </div>
     {% endif %}
 
+    <!-- Upload Form -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h3 class="mb-0">Upload New .blend File</h3>
+        </div>
+        <div class="card-body">
+            <form method="post" enctype="multipart/form-data">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <div class="mb-3">
+                    <label for="file" class="form-label">Select .blend file (max 100MB)</label>
+                    <input type="file" class="form-control" id="file" name="file" accept=".blend" required>
+                </div>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-upload"></i> Upload File
+                </button>
+            </form>
+        </div>
+    </div>
+
     <h2 class="mb-3 d-flex justify-content-between align-items-center">
         Files in Google Drive:
         <a href="{{ url_for('refresh_gdrive') }}" class="btn btn-sm btn-secondary">Refresh from GDrive</a>

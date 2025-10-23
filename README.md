@@ -28,22 +28,13 @@ This project enables users to:
    ```
 
 3. **Required Environment Variables**
-   - `AUTH_TOKEN`: Secure token for web interface authentication
-   - `SECRET_KEY`: Flask session secret (generate a random string)
-   - `TZ`: Your timezone (e.g., Europe/Paris)
-   - `NVIDIA_VISIBLE_DEVICES`: GPU devices to use
-   - `NVIDIA_DRIVER_CAPABILITIES`: CUDA capabilities
+   - `GOOGLE_SERVICE_ACCOUNT_B64`: Secure token for web interface authentication
+   base64 -w 0 service_account.json
 
 4. **Deployment**
    - For local development: `docker compose up`
    - For production: Deploy via Git (Coolify, etc.)
 
-## Security Notes
-
-- Never commit `.env` files to Git
-- Never commit `service_account.json` to Git
-- Use strong, unique tokens for `AUTH_TOKEN` and `SECRET_KEY`
-- Both `.env` and `service_account.json` are excluded in `.gitignore`
 
 ## How to Run
 

@@ -1,4 +1,6 @@
 flask
+flask-wtf
+wtforms
 gunicorn
 google-api-python-client
 google-auth
